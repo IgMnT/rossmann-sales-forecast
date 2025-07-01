@@ -1,0 +1,2 @@
+# The file /rossmann-prediction-app/rossmann-prediction-app/parameter/promo_time_week_scaler.pkl is a binary file that contains the serialized scaler object. 
+# This file is intentionally left blank.

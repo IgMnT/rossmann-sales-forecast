@@ -1,0 +1,2 @@
+# The file model/model_rossmann.pkl is a binary file that contains the serialized machine learning model. 
+# Since it cannot be represented in plain text, this file is intentionally left blank.

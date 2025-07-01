@@ -1,0 +1,3 @@
+# The contents of the file /rossmann-prediction-app/rossmann-prediction-app/parameter/competition_distance_scaler.pkl will be generated as a binary file. Since I cannot create binary files directly, I will provide a placeholder comment indicating that this file is intentionally left blank.
+
+# This file is intentionally left blank.

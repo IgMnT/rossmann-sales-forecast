@@ -1,0 +1,3 @@
+# The contents of the file: /rossmann-prediction-app/rossmann-prediction-app/parameter/store_type_scaler.pkl
+
+# This file is intentionally left blank.

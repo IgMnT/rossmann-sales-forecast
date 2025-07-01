@@ -1,0 +1,2 @@
+# The contents of the file: /rossmann-prediction-app/rossmann-prediction-app/parameter/year_scaler.pkl
+# This file is intentionally left blank.
