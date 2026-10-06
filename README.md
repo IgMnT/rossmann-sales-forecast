@@ -1,67 +1,90 @@
-# rossmann-prediction-app/rossmann-prediction-app/README.md
+# Previsão de Vendas — Rede de Farmácias Rossmann
 
-# Rossmann Prediction App
+Modelo de machine learning que prevê as vendas das próximas 6 semanas de cada uma das 1.115 lojas da rede, publicado como API e consultável por um bot no Telegram.
 
-This project is a Flask application that predicts sales for Rossmann stores based on historical data and various features. It utilizes a pre-trained machine learning model to provide predictions through a Telegram bot interface.
+## Problema de negócio
 
-## Project Structure
+A Rossmann opera farmácias em vários países europeus. O CFO precisa definir o orçamento de reforma das lojas e quer basear essa decisão na receita que cada loja vai gerar nas próximas 6 semanas. Hoje, cada gerente faz sua própria previsão, sem método comum, e os resultados variam muito em qualidade.
+
+**Objetivo:** prever as vendas diárias das próximas 6 semanas para cada loja e entregar o resultado de forma que o CFO consulte pelo celular, a qualquer momento.
+
+## Resultados
+
+| Modelo | MAE | MAPE | RMSE |
+|---|---|---|---|
+| Média por loja (baseline) | 1.354,80 | 45,5% | 1.835,14 |
+| Regressão Linear | 1.867,09 | 29,3% | 2.671,05 |
+| Lasso | 1.891,70 | 28,9% | 2.744,45 |
+| Random Forest | 679,62 | 10,0% | 1.011,19 |
+| **XGBoost (ajustado)** | **664,97** | **9,75%** | **957,77** |
+
+- O XGBoost ajustado erra em média **9,75%**, contra **45,5%** da previsão por média histórica, que é o que a empresa conseguiria sem modelo.
+- Na validação cruzada temporal (5 janelas), Random Forest e XGBoost ficaram em 12% ± 2% e 14% ± 2% de MAPE antes do ajuste de hiperparâmetros. O XGBoost foi escolhido por gerar um modelo bem menor e mais rápido para colocar em produção.
+- **Previsão total para as 6 semanas:** 285,9 milhões em vendas, com cenário pessimista de 285,1 milhões e otimista de 286,6 milhões (moeda do dataset).
+- O erro varia por loja: a maioria fica abaixo de 10%, mas algumas lojas têm MAPE acima de 50%. Elas foram sinalizadas como casos que pedem análise própria antes de decidir o orçamento.
+
+## Estratégia da solução
+
+1. **Descrição e limpeza dos dados:** tratamento de valores ausentes (distância e data de abertura de concorrentes, promoções contínuas).
+2. **Mapa mental de hipóteses e feature engineering:** variáveis de tempo, de competição e de promoção.
+3. **Análise exploratória:** validação de hipóteses de negócio, por exemplo se lojas com concorrentes mais próximos vendem menos.
+4. **Preparação:** rescaling, encoding e transformação logarítmica da variável resposta.
+5. **Seleção de variáveis** com Boruta.
+6. **Modelagem** com validação cruzada temporal e ajuste de hiperparâmetros por busca aleatória.
+7. **Tradução para negócio:** erro por loja, cenários otimista e pessimista e previsão total.
+8. **Deploy:** API Flask com o modelo e o pipeline de preparação, e um bot no Telegram que consulta a API.
+
+## Arquitetura de produção
+
+```mermaid
+flowchart LR
+    U[CFO no celular] -- "/ número da loja" --> T[Bot do Telegram]
+    T -- "dados da loja (JSON)" --> A[API Flask<br/>/rossmann/predict]
+    A --> P[Pipeline: limpeza,<br/>features, preparação]
+    P --> M[Modelo XGBoost]
+    M -- previsão --> T
+    T -- "Loja X venderá Y<br/>nas próximas 6 semanas" --> U
+```
+
+## Estrutura
 
 ```
-rossmann-prediction-app
-├── rossmann
-│   └── Rossmann.py
-├── model
-│   └── model_rossmann.pkl
-├── parameter
-│   ├── competition_distance_scaler.pkl
-│   ├── competition_time_month_scaler.pkl
-│   ├── promo_time_week_scaler.pkl
-│   ├── store_type_scaler.pkl
-│   └── year_scaler.pkl
-├── handler.py
-├── Procfile
-├── requirements.txt
-└── README.md
+├── notebooks/rossmann_sales_forecast.ipynb   # ciclo completo: EDA, modelagem e resultados
+├── img/                                      # mapa de hipóteses
+├── rossmann/Rossmann.py                      # pipeline de preparação usado pela API
+├── model/  parameter/                        # modelo treinado e scalers
+├── handler.py                                # API Flask
+└── telegram-bot/bot.py                       # bot do Telegram
 ```
 
-## Files Description
+## Como rodar
 
-- **rossmann/Rossmann.py**: Contains the `Rossmann` class with methods for data cleaning, feature engineering, data preparation, and making predictions.
-- **model/model_rossmann.pkl**: The serialized machine learning model used for making predictions.
-- **parameter/**: Contains various scaler files used in data preparation.
-- **handler.py**: Initializes the Flask application and defines the prediction endpoint.
-- **Procfile**: Specifies the command to run the application on Railway.
-- **requirements.txt**: Lists the dependencies required for the project.
+```bash
+pip install -r requirements.txt
+python handler.py          # API em http://localhost:5000/rossmann/predict
+```
 
-## Setup Instructions
+Bot do Telegram (precisa de um token criado no @BotFather):
 
-1. Clone the repository:
-   ```
-   git clone <repository-url>
-   cd rossmann-prediction-app
-   ```
+```bash
+cd telegram-bot
+export TELEGRAM_TOKEN=seu_token
+export API_URL=http://localhost:5000/rossmann/predict
+python bot.py
+```
 
-2. Install the required dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
+**Dados:** [Rossmann Store Sales — Kaggle](https://www.kaggle.com/c/rossmann-store-sales/data). Baixe `train.csv`, `test.csv` e `store.csv` para a pasta `data/`.
 
-3. Run the application locally:
-   ```
-   python handler.py
-   ```
+## Próximos passos
 
-## Deploying on Railway
+- Modelos específicos para as lojas com erro acima de 30%.
+- Incluir variáveis externas, como feriados regionais e clima.
+- Retreino automático e monitoramento do erro em produção.
 
-To deploy this project on Railway, follow these steps:
+## Tecnologias
 
-1. Create a Railway account and log in.
-2. Create a new project and select the option to deploy from a GitHub repository or upload your project files directly.
-3. Ensure that your `requirements.txt` file is present to install the necessary dependencies.
-4. Set the environment variables if needed (e.g., for any API keys).
-5. Railway will automatically detect the `Procfile` and use it to start your application.
-6. Once the deployment is complete, you will receive a URL to access your application.
+Python · pandas · scikit-learn · XGBoost · Boruta · Flask · Telegram Bot API
 
-## Usage
+---
 
-Once deployed, you can interact with the application through the Telegram bot. Send a message with the store ID to receive sales predictions for the next six weeks.
+Projeto desenvolvido na Formação Cientista de Dados da Comunidade DS.
